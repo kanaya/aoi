@@ -3,6 +3,7 @@ import argparse
 import cv2
 import numpy as np
 from PIL import Image, ImageFilter
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('xyz_file', help='your XYZ file')
@@ -49,11 +50,7 @@ d = (z_max - z_min) / n_slices
 w = output_resolution
 h = int((y_max - y_min) / (x_max - x_min) * w)
 
-print('Processing {} slices'.format(n_slices), end='', flush=True, file=sys.stderr)
-
-for level in range(0, n_slices):
-	if (level % 10 == 0):
-		print('.', end='', flush=True, file=sys.stderr)
+for level in tqdm(range(0, n_slices)):
 	blank = np.zeros((h, w, 3))
 	blank += 255
 	for i in range(0, len_list):
@@ -65,5 +62,3 @@ for level in range(0, n_slices):
 			cv2.circle(img=blank, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
 	filename = '{}{:04d}.png'.format(output_prefix, level)
 	cv2.imwrite(filename, blank)
-
-print('done', file=sys.stderr)
