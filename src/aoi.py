@@ -13,14 +13,15 @@ parser.add_argument('-r', '--resolution', type=int, default=500, help='resolutio
 parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
 args = parser.parse_args()
 
-xyzfile = open(args.xyz_file, 'r')
-list = xyzfile.read().split()
-xyzfile.close()
-
+input_filename = args.xyz_file
 kernel_size = args.kernel
 n_slices = args.slices
 output_resolution = args.resolution
 output_prefix = args.prefix
+
+xyz_file = open(input_filename, 'r')
+list = xyz_file.read().split()
+xyz_file.close()
 
 x_list = []
 y_list = []
@@ -40,10 +41,12 @@ len_list = len(z_list)
 x_max = max(x_list)
 x_min = min(x_list)
 x_mid = (x_max + x_min) / 2
+x_len = x_max - x_min
 
 y_max = max(y_list)
 y_min = min(y_list)
 y_mid = (y_max + y_min) / 2
+y_len = y_max - y_min
 
 z_max = max(z_list)
 z_min = min(z_list)
@@ -52,7 +55,12 @@ d = (z_max - z_min) / n_slices
 w = output_resolution
 h = int((y_max - y_min) / (x_max - x_min) * w)
 
+px = x_len / w # [m/px]
+px2 = px * px  # [m2/px2]
+
 kernel = np.ones((kernel_size, kernel_size), np.uint8)
+
+print('Processing {}\n  Width = {}[m]\n  Height = {}[m]\n  Pixel length = {}[m/px]\n  Pixel area = {}[m2/px2]'.format(input_filename, x_len, y_len, px, px2))
 
 for level in tqdm(range(0, n_slices)):
 	blank_image = np.zeros((h, w, 3))
@@ -61,8 +69,8 @@ for level in tqdm(range(0, n_slices)):
 		base = z_min + d * level
 		z = z_list[i]
 		if (z >= base and z < base + d):
-			x = int((x_list[i] - x_mid) / (x_max - x_min) * w + w / 2)
-			y = int((y_list[i] - y_mid) / (y_max - y_min) * h + h / 2)
+			x = int((x_list[i] - x_mid) / x_len * w + w / 2)
+			y = int((y_list[i] - y_mid) / y_len * h + h / 2)
 			cv2.circle(img=blank_image, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
 	result_image = cv2.morphologyEx(blank_image, cv2.MORPH_OPEN, kernel)
 	filename = '{}{:04d}.png'.format(output_prefix, level)
