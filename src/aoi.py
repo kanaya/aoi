@@ -66,7 +66,7 @@ px2 = px * px  # [m2/px2]
 
 kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-print('# Processing {}\n#   Size of Easting = {}[m]\n#   Size of Easting = {}[m]\n#   Pixel length = {}[m/px]\n#   Pixel area = {}[m2/px2]\n#   Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, px, px2, d))
+print('# Processing {}\n#   Size of Easting = {}[m]\n#   Size of Northing = {}[m]\n#   Pixel length = {}[m/px]\n#   Pixel area = {}[m2/px2]\n#   Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, px, px2, d))
 
 area = 0
 for slice in tqdm(range(0, n_slices)):
