@@ -63,7 +63,7 @@ for level in range(0, n_slices):
 			x = int((x_list[i] - x_mid) / (x_max - x_min) * w + w / 2)
 			y = int((y_list[i] - y_mid) / (y_max - y_min) * h + h / 2)
 			cv2.circle(img=blank, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
-	filename = '{}F_{:04d}.png'.format(output_prefix, level)
+	filename = '{}{:04d}.png'.format(output_prefix, level)
 	cv2.imwrite(filename, blank)
 
 print('done', file=sys.stderr)
