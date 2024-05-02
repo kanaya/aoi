@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('xyz_file', help='your XYZ file')
+parser.add_argument('-a', '--area', action='store_true', help='calculate area (default: false)')
 parser.add_argument('-e', '--edge', action='store_true', help='activate edge detection (default: false)')
 parser.add_argument('-k', '--kernel', type=int, default=3, help='kernel size of morphological transformation (default: 3)')
 parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
@@ -15,7 +16,8 @@ parser.add_argument('-s', '--slices', type=int, default=100, help='number of sli
 args = parser.parse_args()
 
 input_filename = args.xyz_file
-edge_detection = args.edge
+calc_area = args.area
+edge_detection = args.edge or args.area
 kernel_size = args.kernel
 n_slices = args.slices
 output_resolution = args.resolution
@@ -62,13 +64,13 @@ px2 = px * px  # [m2/px2]
 
 kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-print('Processing {}\n  Width = {}[m]\n  Height = {}[m]\n  Pixel length = {}[m/px]\n  Pixel area = {}[m2/px2]\n  Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, px, px2, d))
+print('# Processing {}\n#  Width = {}[m]\n#  Height = {}[m]\n#  Pixel length = {}[m/px]\n#  Pixel area = {}[m2/px2]\n#  Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, px, px2, d))
 
-for level in tqdm(range(0, n_slices)):
+area = 0
+for slice in tqdm(range(0, n_slices)):
 	blank_image = np.zeros((h, w, 3))
-	# blank_image += 255
 	for i in range(0, len_list):
-		base = z_min + d * level
+		base = z_min + d * slice
 		z = z_list[i]
 		if (z >= base and z < base + d):
 			x = int((x_list[i] - x_mid) / x_len * w + w / 2)
@@ -79,5 +81,10 @@ for level in tqdm(range(0, n_slices)):
 		gray_image = cv2.cvtColor(np.uint8(result_image), cv2.COLOR_BGR2GRAY)
 		contours, hierarchy = cv2.findContours(gray_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		cv2.drawContours(result_image, contours, -1, (0, 0, 255), 3)
-	filename = '{}{:04d}.png'.format(output_prefix, level)
+		if calc_area:
+			for contour in contours:
+				area += cv2.contourArea(contour)
+	filename = '{}{:04d}.png'.format(output_prefix, slice)
 	cv2.imwrite(filename, result_image)
+if calc_area:
+	print('total area is {}, meaning {}[m3]'.format(area, area * px2 * d))
