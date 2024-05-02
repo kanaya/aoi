@@ -13,6 +13,7 @@ parser.add_argument('-k', '--kernel', type=int, default=3, help='kernel size of 
 parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
 parser.add_argument('-r', '--resolution', type=int, default=500, help='resolution of output images (default: 500)')
 parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
+parser.add_argument('-z', '--zstart', type=int, default=0, help='starting plane (default: 0)')
 args = parser.parse_args()
 
 input_filename = args.xyz_file
@@ -22,8 +23,9 @@ kernel_size = args.kernel
 n_slices = args.slices
 output_resolution = args.resolution
 output_prefix = args.prefix
+z_start = args.zstart
 
-print('# Given parameters are:\n#   --area {}\n#   --edge {}\n#   --kernel {}\n#   --resolution {}\n#   --slices {}'.format(calc_area, edge_detection, kernel_size, output_resolution, n_slices))
+print('# Given parameters are:\n#   --area {}\n#   --edge {}\n#   --kernel {}\n#   --resolution {}\n#   --slices {}\n#   --zstart {}'.format(calc_area, edge_detection, kernel_size, output_resolution, n_slices, z_start))
 
 xyz_file = open(input_filename, 'r')
 list = xyz_file.read().split()
@@ -66,10 +68,10 @@ px2 = px * px  # [m2/px2]
 
 kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-print('# Processing {}\n#   Size of Easting = {}[m]\n#   Size of Northing = {}[m]\n#   Pixel length = {}[m/px]\n#   Pixel area = {}[m2/px2]\n#   Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, px, px2, d))
+print('# Processing {}\n#   Size of Easting = {}[m]\n#   Size of Northing = {}[m]\n#   Z_min = {}[m]\n#   Z_max = {}[m]\n#   Pixel length = {}[m/px]\n#   Pixel area = {}[m2/px2]\n#   Thikness of slice = {}[m]'.format(input_filename, x_len, y_len, z_min, z_max, px, px2, d))
 
 area = 0
-for slice in tqdm(range(0, n_slices)):
+for slice in tqdm(range(z_start, n_slices)):
 	blank_image = np.zeros((h, w, 3))
 	for i in range(0, len_list):
 		base = z_min + d * slice
