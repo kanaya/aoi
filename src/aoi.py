@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('xyz_file', help='your XYZ file')
+parser.add_argument('-k', '--kernel', type=int, default=3, help='kernel size of morphological transformation (default: 3)')
 parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
 parser.add_argument('-r', '--resolution', type=int, default=500, help='resolution of output images (default: 500)')
 parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
@@ -16,9 +17,10 @@ xyzfile = open(args.xyz_file, 'r')
 list = xyzfile.read().split()
 xyzfile.close()
 
+kernel_size = args.kernel
+n_slices = args.slices
 output_resolution = args.resolution
 output_prefix = args.prefix
-n_slices = args.slices
 
 x_list = []
 y_list = []
@@ -50,15 +52,18 @@ d = (z_max - z_min) / n_slices
 w = output_resolution
 h = int((y_max - y_min) / (x_max - x_min) * w)
 
+kernel = np.ones((kernel_size, kernel_size), np.uint8)
+
 for level in tqdm(range(0, n_slices)):
-	blank = np.zeros((h, w, 3))
-	blank += 255
+	blank_image = np.zeros((h, w, 3))
+	blank_image += 255
 	for i in range(0, len_list):
 		base = z_min + d * level
 		z = z_list[i]
 		if (z >= base and z < base + d):
 			x = int((x_list[i] - x_mid) / (x_max - x_min) * w + w / 2)
 			y = int((y_list[i] - y_mid) / (y_max - y_min) * h + h / 2)
-			cv2.circle(img=blank, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
+			cv2.circle(img=blank_image, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
+	result_image = cv2.morphologyEx(blank_image, cv2.MORPH_OPEN, kernel)
 	filename = '{}{:04d}.png'.format(output_prefix, level)
-	cv2.imwrite(filename, blank)
+	cv2.imwrite(filename, result_image)
