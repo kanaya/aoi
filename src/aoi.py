@@ -83,6 +83,9 @@ print('# Processing {}\n'
 	'#   Pixel area = {:,.3f}[m²/px²]\n'
 	'#   Thikness of slice = {:,.3f}[m]'
 	.format(input_filename, x_dif, y_dif, z_min, z_max, px, px2, d))
+print('# If you want to make a voxel being 100[mm] cube, try the following parameter.\n'
+	'#   --resolution {} --slices {}'
+	.format(int(x_dif / 0.1), int(z_dif / 0.1)))
 
 area = 0
 for slice in tqdm(range(z_start, n_slices)):
