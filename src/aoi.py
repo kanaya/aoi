@@ -1,10 +1,23 @@
+import sys
+import argparse
+import cv2
 import numpy as np
 from PIL import Image, ImageFilter
-import cv2
 
-myfile = open('menkaure-pyramid-1000th.xyz', 'r')
-list = myfile.read().split()
-myfile.close()
+parser = argparse.ArgumentParser()
+parser.add_argument('xyz_file', help='your XYZ file')
+parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
+parser.add_argument('-r', '--resolution', type=int, default=500, help='resolution of output images (default: 500)')
+parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
+args = parser.parse_args()
+
+xyzfile = open(args.xyz_file, 'r')
+list = xyzfile.read().split()
+xyzfile.close()
+
+output_resolution = args.resolution
+output_prefix = args.prefix
+n_slices = args.slices
 
 x_list = []
 y_list = []
@@ -32,18 +45,15 @@ y_mid = (y_max + y_min) / 2
 z_max = max(z_list)
 z_min = min(z_list)
 
-print('x_max={}, x_min={}, dx={}'.format(x_max, x_min, x_max-x_min))
-print('y_max={}, y_min={}, dy={}'.format(y_max, y_min, y_max-y_min))
-print('z_max={}, z_min={}, dz={}'.format(z_max, z_min, z_max-z_min))
-
-n_slices = 100
 d = (z_max - z_min) / n_slices
-w = 500
+w = output_resolution
 h = int((y_max - y_min) / (x_max - x_min) * w)
 
-print("h={}".format(h))
+print('Processing {} slices'.format(n_slices), end='', flush=True, file=sys.stderr)
 
 for level in range(0, n_slices):
+	if (level % 10 == 0):
+		print('.', end='', flush=True, file=sys.stderr)
 	blank = np.zeros((h, w, 3))
 	blank += 255
 	for i in range(0, len_list):
@@ -53,5 +63,7 @@ for level in range(0, n_slices):
 			x = int((x_list[i] - x_mid) / (x_max - x_min) * w + w / 2)
 			y = int((y_list[i] - y_mid) / (y_max - y_min) * h + h / 2)
 			cv2.circle(img=blank, center=(x, y), radius=1, color=(0,0,0), thickness=-1)
-	filename = 'result/F_{}-{}.png'.format(level, level + 1)
+	filename = '{}F_{:04d}.png'.format(output_prefix, level)
 	cv2.imwrite(filename, blank)
+
+print('done', file=sys.stderr)
