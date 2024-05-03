@@ -1,9 +1,10 @@
-import sys
 import argparse
+import concurrent.futures
 import cv2
 import functools
-import concurrent.futures
+import multiprocessing as mp
 import numpy as np
+import sys
 from PIL import Image, ImageFilter
 from tqdm import tqdm
 
@@ -57,7 +58,6 @@ def main():
 		y_list.append(float(xyz_list[y]))
 	for z in range(2, len(xyz_list), 3):
 		z_list.append(float(xyz_list[z]))
-
 	x_max = max(x_list)
 	x_min = min(x_list)
 	x_mid = (x_max + x_min) / 2
@@ -93,9 +93,12 @@ def main():
 		.format(int(x_dif / 0.1), int(z_dif / 0.1)))
 
 	if multiprocess:
-		with concurrent.futures.ProcessPoolExecutor() as executor:
+		shared_x_list = ndarray_to_shared_memory(np.array(x_list, dtype=np.float64))
+		shared_y_list = ndarray_to_shared_memory(np.array(y_list, dtype=np.float64))
+		shared_z_list = ndarray_to_shared_memory(np.array(z_list, dtype=np.float64))
+		with concurrent.futures.ThreadPoolExecutor(initializer=lambda: globals().update(dict(shared_x_list=shared_x_list, shared_y_list=shared_y_list, shared_z_list=shared_z_list))) as executor:
 			iter = range(z_start, n_slices)
-			m = executor.map(functools.partial(process_slice, x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+			m = executor.map(functools.partial(process_slice_mp, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
 			results = list(m)
 			# *** multithread version ***
 			# with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -113,10 +116,15 @@ def main():
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
 
+def process_slice_mp(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
+	x_list = shared_memory_to_ndarray(shared_x_list)
+	y_list = shared_memory_to_ndarray(shared_y_list)
+	z_list = shared_memory_to_ndarray(shared_z_list)
+	process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice)
+
 def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
 	global edge_detection
 	global calc_area
-	# print('slice {}: x_mid = {}, y_mid = {}, len_list = {}, calc_area = {}'.format(slice, x_mid, y_mid, len(z_list), calc_area))
 	kernel = np.ones((kernel_size, kernel_size), np.uint8)
 	blank_image = np.zeros((h, w, 3))
 	len_list = len(z_list)
@@ -138,6 +146,25 @@ def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, 
 				area[slice] = cv2.contourArea(contour)
 	filename = '{}{:04d}.png'.format(output_prefix, slice)
 	cv2.imwrite(filename, result_image)
+
+# The following codes are copied from https://zenn.dev/kzm4269/articles/80df87e6e9001f
+def ndarray_to_shared_memory(data):
+	data = np.asarray(data)
+	value_type = np.ctypeslib.as_ctypes_type(np.uint8)
+	if data.ndim >= 1:
+		value_type *= data.itemsize * data.shape[-1]
+	for dim in data.shape[:-1][::-1]:
+		value_type *= dim
+	value = mp.RawValue(value_type)
+	try:
+		np.ctypeslib.as_array(value)[:] = data.view(np.uint8)
+	except TypeError:
+		raise TypeError(f'unsupported dtype: {data.dtype!r}')
+	return value, data.dtype
+
+def shared_memory_to_ndarray(data):
+	value, dtype = data
+	return np.ctypeslib.as_array(value).view(dtype)
 
 if __name__ == '__main__':
 	main()
