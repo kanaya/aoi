@@ -1,6 +1,7 @@
 import sys
 import argparse
 import cv2
+import concurrent.futures
 import numpy as np
 from PIL import Image, ImageFilter
 from tqdm import tqdm
@@ -88,10 +89,19 @@ def main():
 		'#   --resolution {} --slices {}'
 		.format(int(x_dif / 0.1), int(z_dif / 0.1)))
 
+	# *** for version ***
 	# for slice in tqdm(range(z_start, n_slices)):
-	#	process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
-	m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), tqdm(range(z_start, n_slices)))
-	results = list(m)
+	#   process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
+	#
+	# *** map version ***
+	# m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+	#   results = list(m)
+	#
+	with concurrent.futures.ThreadPoolExecutor() as executor:
+		iter = range(z_start, n_slices)
+		m = executor.map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+		results = list(m)
+
 	if calc_area:
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
