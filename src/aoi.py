@@ -29,7 +29,7 @@ x_list = []
 y_list = []
 z_list = []
 
-area = 0.0
+area = [0] * n_slices
 
 def main():
 	print('# Given parameters are:\n'
@@ -91,10 +91,10 @@ def main():
 	for slice in tqdm(range(z_start, n_slices)):
 		process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
 	if calc_area:
-		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(area, area * px2 * d))
+		total_area = sum(area)
+		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
 
 def process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d):
-	global area
 	kernel = np.ones((kernel_size, kernel_size), np.uint8)
 	blank_image = np.zeros((h, w, 3))
 	len_list = len(z_list)
@@ -113,7 +113,7 @@ def process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d):
 		cv2.fillPoly(result_image, contours, (0, 0, 255))
 		if calc_area:
 			for contour in contours:
-				area += cv2.contourArea(contour)
+				area[slice] = cv2.contourArea(contour)
 	filename = '{}{:04d}.png'.format(output_prefix, slice)
 	cv2.imwrite(filename, result_image)
 
