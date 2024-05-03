@@ -12,6 +12,7 @@ parser.add_argument('xyz_file', help='your XYZ file')
 parser.add_argument('-a', '--area', action='store_true', help='calculate area (default: false)')
 parser.add_argument('-e', '--edge', action='store_true', help='activate edge detection (default: false)')
 parser.add_argument('-k', '--kernel', type=int, default=3, help='kernel size of morphological transformation (default: 3)')
+parser.add_argument('-m', '--multiprocess', action='store_true', help='enable multiprocessing (default: false)')
 parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
 parser.add_argument('-r', '--resolution', type=int, default=500, help='resolution of output images (default: 500)')
 parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
@@ -22,9 +23,10 @@ input_filename = args.xyz_file
 calc_area = args.area
 edge_detection = args.edge or args.area
 kernel_size = args.kernel
-n_slices = args.slices
-output_resolution = args.resolution
+multiprocess = args.multiprocess
 output_prefix = args.prefix
+output_resolution = args.resolution
+n_slices = args.slices
 z_start = args.zstart
 
 x_list = []
@@ -90,25 +92,22 @@ def main():
 		'#   --resolution {} --slices {}'
 		.format(int(x_dif / 0.1), int(z_dif / 0.1)))
 
-	# *** for version ***
-	# for slice in tqdm(range(z_start, n_slices)):
-	#   process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice)
-	#
-	# *** map version ***
-	# m = map(lambda s: process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), tqdm(range(z_start, n_slices)))
-	#   results = list(m)
-	#
-	# *** multithread version ***
-	# with concurrent.futures.ThreadPoolExecutor() as executor:
-	#   iter = range(z_start, n_slices)
-	#   m = executor.map(lambda s: process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), iter)
-	#   results = list(m)
-	#
-	# *** multiprocess version ***
-	with concurrent.futures.ProcessPoolExecutor() as executor:
-		iter = range(z_start, n_slices)
-		m = executor.map(functools.partial(process_slice, x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+	if multiprocess:
+		with concurrent.futures.ProcessPoolExecutor() as executor:
+			iter = range(z_start, n_slices)
+			m = executor.map(functools.partial(process_slice, x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+			results = list(m)
+			# *** multithread version ***
+			# with concurrent.futures.ThreadPoolExecutor() as executor:
+			#   iter = range(z_start, n_slices)
+			#   m = executor.map(lambda s: process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), iter)
+			#   results = list(m)
+	else:
+		m = map(lambda s: process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), tqdm(range(z_start, n_slices)))
 		results = list(m)
+		# *** for version ***
+		# for slice in tqdm(range(z_start, n_slices)):
+		# 	process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice)
 
 	if calc_area:
 		total_area = sum(area)
