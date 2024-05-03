@@ -98,7 +98,8 @@ def main():
 		shared_z_list = ndarray_to_shared_memory(np.array(z_list, dtype=np.float64))
 		with concurrent.futures.ThreadPoolExecutor(initializer=lambda: globals().update(dict(shared_x_list=shared_x_list, shared_y_list=shared_y_list, shared_z_list=shared_z_list))) as executor:
 			iter = range(z_start, n_slices)
-			m = executor.map(functools.partial(process_slice_mp, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+			m = executor.map(functools.partial(process_slice, x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+			# m = executor.map(process_slice_mp_params, [(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice) for slice in iter])
 			results = list(m)
 			# *** multithread version ***
 			# with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -115,6 +116,9 @@ def main():
 	if calc_area:
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
+
+# def process_slice_mp_params(a):
+# 	process_slice_mp(*a)
 
 def process_slice_mp(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
 	x_list = shared_memory_to_ndarray(shared_x_list)
