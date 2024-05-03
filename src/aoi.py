@@ -90,7 +90,7 @@ def main():
 
 	# for slice in tqdm(range(z_start, n_slices)):
 	#	process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
-	m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), range(z_start, n_slices))
+	m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), tqdm(range(z_start, n_slices)))
 	results = list(m)
 	if calc_area:
 		total_area = sum(area)
