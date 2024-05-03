@@ -1,6 +1,7 @@
 import sys
 import argparse
 import cv2
+import functools
 import concurrent.futures
 import numpy as np
 from PIL import Image, ImageFilter
@@ -91,22 +92,32 @@ def main():
 
 	# *** for version ***
 	# for slice in tqdm(range(z_start, n_slices)):
-	#   process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
+	#   process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice)
 	#
 	# *** map version ***
-	# m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+	# m = map(lambda s: process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), tqdm(range(z_start, n_slices)))
 	#   results = list(m)
 	#
-	with concurrent.futures.ThreadPoolExecutor() as executor:
+	# *** multithread version ***
+	# with concurrent.futures.ThreadPoolExecutor() as executor:
+	#   iter = range(z_start, n_slices)
+	#   m = executor.map(lambda s: process_slice(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), iter)
+	#   results = list(m)
+	#
+	# *** multiprocess version ***
+	with concurrent.futures.ProcessPoolExecutor() as executor:
 		iter = range(z_start, n_slices)
-		m = executor.map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
+		m = executor.map(functools.partial(process_slice, x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), iter)
 		results = list(m)
 
 	if calc_area:
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
 
-def process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d):
+def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
+	global edge_detection
+	global calc_area
+	# print('slice {}: x_mid = {}, y_mid = {}, len_list = {}, calc_area = {}'.format(slice, x_mid, y_mid, len(z_list), calc_area))
 	kernel = np.ones((kernel_size, kernel_size), np.uint8)
 	blank_image = np.zeros((h, w, 3))
 	len_list = len(z_list)
