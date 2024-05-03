@@ -43,16 +43,16 @@ def main():
 
 	print('Reading {}... '.format(input_filename), end='', file=sys.stderr)
 	xyz_file = open(input_filename, 'r')
-	list = xyz_file.read().split()
+	xyz_list = xyz_file.read().split()
 	xyz_file.close()
 	print('done', file=sys.stderr)
 
-	for x in range(0, len(list), 3):
-		x_list.append(float(list[x]))
-	for y in range(1, len(list), 3):
-		y_list.append(float(list[y]))
-	for z in range(2, len(list), 3):
-		z_list.append(float(list[z]))
+	for x in range(0, len(xyz_list), 3):
+		x_list.append(float(xyz_list[x]))
+	for y in range(1, len(xyz_list), 3):
+		y_list.append(float(xyz_list[y]))
+	for z in range(2, len(xyz_list), 3):
+		z_list.append(float(xyz_list[z]))
 
 	x_max = max(x_list)
 	x_min = min(x_list)
@@ -88,8 +88,10 @@ def main():
 		'#   --resolution {} --slices {}'
 		.format(int(x_dif / 0.1), int(z_dif / 0.1)))
 
-	for slice in tqdm(range(z_start, n_slices)):
-		process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
+	# for slice in tqdm(range(z_start, n_slices)):
+	#	process_slice(slice, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d)
+	m = map(lambda s: process_slice(s, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d), range(z_start, n_slices))
+	results = list(m)
 	if calc_area:
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
