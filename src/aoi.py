@@ -11,23 +11,27 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser()
 parser.add_argument('xyz_file', help='your XYZ file')
 parser.add_argument('-a', '--area', action='store_true', help='calculate area (default: false)')
+parser.add_argument('-c', '--cutoff', type=float, default=0.0, help='cut off of z-axis (default: 0.0)')
 parser.add_argument('-e', '--edge', action='store_true', help='activate edge detection (default: false)')
 parser.add_argument('-k', '--kernel', type=int, default=3, help='kernel size of morphological transformation (default: 3)')
-parser.add_argument('-m', '--multiprocess', action='store_true', help='enable multiprocessing (default: false)')
+parser.add_argument('-m', '--multiprocess', action='store_true', help='enable multiprocessing (default: false) [EXPERIMENTAL]')
 parser.add_argument('-p', '--prefix', default='', help='prefix of output files')
 parser.add_argument('-r', '--resolution', type=int, default=500, help='resolution of output images (default: 500)')
 parser.add_argument('-s', '--slices', type=int, default=100, help='number of slices (default: 100)')
+parser.add_argument('-w', '--warning', action='store_true', help='show warning if there is strange calculation')
 parser.add_argument('-z', '--zstart', type=int, default=0, help='starting plane (default: 0)')
 args = parser.parse_args()
 
 input_filename = args.xyz_file
-calc_area = args.area
-edge_detection = args.edge or args.area
+calc_area = args.area or args.warning
+edge_detection = args.edge or args.area or args.warning
 kernel_size = args.kernel
 multiprocess = args.multiprocess
 output_prefix = args.prefix
 output_resolution = args.resolution
 n_slices = args.slices
+warning_option = args.warning
+z_cutoff = args.cutoff
 z_start = args.zstart
 
 x_list = []
@@ -39,12 +43,14 @@ area = [0] * n_slices
 def main():
 	print('# Given parameters are:\n'
 		'#   --area {}\n'
+		'#   --cutoff {}\n'
 		'#   --edge {}\n'
 		'#   --kernel {}\n'
 		'#   --resolution {}\n'
 		'#   --slices {}\n'
+		'#   --warning {}\n'
 		'#   --zstart {}'
-		.format(calc_area, edge_detection, kernel_size, output_resolution, n_slices, z_start))
+		.format(calc_area, z_cutoff, edge_detection, kernel_size, output_resolution, n_slices, warning_option, z_start))
 
 	print('Reading {}... '.format(input_filename), end='', file=sys.stderr)
 	xyz_file = open(input_filename, 'r')
@@ -83,11 +89,12 @@ def main():
 		'#   Size of Easting = {:,.3f}[m]\n'
 		'#   Size of Northing = {:,.3f}[m]\n'
 		'#   Z_min = {:,.3f}[m]\n'
+		'#   Z_cutoff = {:,.3f}[m]\n'
 		'#   Z_max = {:,.3f}[m]\n'
 		'#   Pixel length = {:,.3f}[m/px]\n'
 		'#   Pixel area = {:,.3f}[m²/px²]\n'
 		'#   Thikness of slice = {:,.3f}[m]'
-		.format(input_filename, x_dif, y_dif, z_min, z_max, px, px2, d))
+		.format(input_filename, x_dif, y_dif, z_min, z_cutoff, z_max, px, px2, d))
 	print('# If you want to make a voxel being 100[mm] cube, try the following parameter.\n'
 		'#   --resolution {} --slices {}'
 		.format(int(x_dif / 0.1), int(z_dif / 0.1)))
@@ -107,7 +114,7 @@ def main():
 			#   m = executor.map(lambda s: process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), iter)
 			#   results = list(m)
 	else:
-		m = map(lambda s: process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, s), tqdm(range(z_start, n_slices)))
+		m = map(lambda s: process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, z_cutoff, w, h, d, s), tqdm(range(z_start, n_slices)))
 		results = list(m)
 		# *** for version ***
 		# for slice in tqdm(range(z_start, n_slices)):
@@ -116,6 +123,8 @@ def main():
 	if calc_area:
 		total_area = sum(area)
 		print('total area is {:,.3f}, meaning {:,.3f}[m³]'.format(total_area, total_area * px2 * d))
+	if warning_option:
+		show_warning_if_exists_strange_calculation(area)
 
 # def process_slice_mp_params(a):
 # 	process_slice_mp(*a)
@@ -126,7 +135,7 @@ def process_slice_mp(x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
 	z_list = shared_memory_to_ndarray(shared_z_list)
 	process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice)
 
-def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, h, d, slice):
+def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, z_cutoff, w, h, d, slice):
 	global edge_detection
 	global calc_area
 	kernel = np.ones((kernel_size, kernel_size), np.uint8)
@@ -134,11 +143,12 @@ def process_slice(x_list, y_list, z_list, x_mid, y_mid, x_dif, y_dif, z_min, w, 
 	len_list = len(z_list)
 	for i in range(0, len_list):
 		base = z_min + d * slice
-		z = z_list[i]
-		if (z >= base and z < base + d):
-			x = int((x_list[i] - x_mid) / x_dif * w + w / 2)
-			y = int((y_list[i] - y_mid) / y_dif * h + h / 2)
-			cv2.circle(img=blank_image, center=(x, y), radius=1, color=(255, 255, 255), thickness=-1)
+		if (base >= z_cutoff):
+			z = z_list[i]
+			if (z >= base and z < base + d):
+				x = int((x_list[i] - x_mid) / x_dif * w + w / 2)
+				y = int((y_list[i] - y_mid) / y_dif * h + h / 2)
+				cv2.circle(img=blank_image, center=(x, y), radius=1, color=(255, 255, 255), thickness=-1)
 	result_image = cv2.morphologyEx(blank_image, cv2.MORPH_CLOSE, kernel)
 	if edge_detection:
 		gray_image = cv2.cvtColor(np.uint8(result_image), cv2.COLOR_BGR2GRAY)
@@ -169,6 +179,16 @@ def ndarray_to_shared_memory(data):
 def shared_memory_to_ndarray(data):
 	value, dtype = data
 	return np.ctypeslib.as_array(value).view(dtype)
+
+def show_warning_if_exists_strange_calculation(area):
+	for i in range(1, len(area) - 1):
+		a0 = area[i - 1]
+		a1 = area[i]
+		a2 = area[i + 1]
+		aa = (a0 + a2) / 2.0
+		ar = a1 / aa
+		if ar < 0.8 or ar > 1.2:
+			print('Area of slice {} looks strange.'.format(i), file=sys.stderr)
 
 if __name__ == '__main__':
 	main()
