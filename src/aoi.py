@@ -186,9 +186,10 @@ def show_warning_if_exists_strange_calculation(area):
 		a1 = area[i]
 		a2 = area[i + 1]
 		aa = (a0 + a2) / 2.0
-		ar = a1 / aa
-		if ar < 0.8 or ar > 1.2:
-			print('Area of slice {} looks strange.'.format(i), file=sys.stderr)
+		if abs(aa) > 0.001:
+			ar = a1 / aa
+			if ar < 0.8 or ar > 1.2:
+				print('Area of slice {} looks strange.'.format(i), file=sys.stderr)
 
 if __name__ == '__main__':
 	main()
